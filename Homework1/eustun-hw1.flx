@@ -1,0 +1,136 @@
+tMAIL "Mail"
+tENDMAIL end[ \n\t\r]+Mail
+tSEND "send"
+tFROM "from"
+tSCHEDULE "schedule"
+tENDSCHEDULE "end schedule"
+tTO "to"
+tSET "set"
+tCOMMA ","
+tLPR "("
+tLBR "["
+tAT "@"
+tCOLON ":"
+tRPR ")"
+tRBR "]"
+tSTRING \"([^\"]*)\"
+tIDENT [_a-zA-Z_][_a-zA-Z0-9_]*
+tTIME [0-9]{2}":"[0-9]{2}
+tDATE [0-9]{2}"/"[0-9]{2}"/"[0-9]{4}|[0-9]{2}"-"[0-9]{2}"-"[0-9]{4}|[0-9]{2}"."[0-9]{2}"."[0-9]{4}
+tLOCAL [\-a-zA-Z0-9_][a-zA-Z\-_]*(\.[a-zA-Z0-9_-]+)*
+tDOMAIN [a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]\.[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]\.[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]\.[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]
+
+%{
+    int noOfLines = 1;
+    int noOfMultilineOpen = 0;
+    int noOfMultilineClose = 0;
+%}
+
+%x multilinecomment
+%x comment
+%%
+\n noOfLines++;
+"//" BEGIN(comment);
+<comment>"\n" {BEGIN(INITIAL); noOfLines++;}
+<comment>. printf("");
+"/*" {
+    noOfMultilineOpen++;
+    BEGIN(multilinecomment);
+}
+<multilinecomment>"/*" noOfMultilineOpen++;
+<multilinecomment>"\n" noOfLines++;
+<multilinecomment>"*/" {
+    noOfMultilineClose++;
+    if (noOfMultilineClose == noOfMultilineOpen) {
+        BEGIN(INITIAL);
+    }   
+}
+<multilinecomment>. printf("");
+{tMAIL} printf("%d_%s\n", noOfLines, "tMAIL");
+{tENDMAIL} printf("%d_%s\n", noOfLines, "tENDMAIL");
+{tSEND} printf("%d_%s\n", noOfLines, "tSEND");
+{tFROM} printf("%d_%s\n", noOfLines, "tFROM");
+{tSCHEDULE} printf("%d_%s\n", noOfLines, "tSCHEDULE");
+{tENDSCHEDULE} printf("%d_%s\n", noOfLines, "tENDSCHEDULE");
+{tTO} printf("%d_%s\n", noOfLines, "tTO");
+{tSET} printf("%d_%s\n", noOfLines, "tSET");
+{tCOMMA} printf("%d_%s\n", noOfLines, "tCOMMA");
+{tLPR} printf("%d_%s\n", noOfLines, "tLPR");
+{tLBR} printf("%d_%s\n", noOfLines, "tLBR");
+{tAT} printf("%d_%s\n", noOfLines, "tAT");
+{tCOLON} printf("%d_%s\n", noOfLines, "tCOLON");
+{tRPR} printf("%d_%s\n", noOfLines, "tRPR");
+{tRBR} printf("%d_%s\n", noOfLines, "tRBR");
+{tDATE} {
+    size_t len = strlen(yytext);
+
+    char* day = (char*)malloc((len+1) * sizeof(char));
+
+    char* month = (char*)malloc((len+1) * sizeof(char));
+
+    char* year = (char*)malloc((len+1) * sizeof(char));
+
+
+    strncpy(day, yytext + 0, len - 8);
+
+    strncpy(month, yytext + 3, len - 8);
+
+    strncpy(year, yytext + 6, len);
+
+
+    day[len-8] = '\0';
+    month[len-8] = '\0';
+    year[len] = '\0';
+
+   
+    printf("%d_%s_(%s%s%s%s%s%s)\n", noOfLines, "tDATE","Day_",day,"_Month_",month, "_Year_", year);
+}
+{tTIME} {
+    
+    size_t len = strlen(yytext);
+
+    char* hour = (char*)malloc((len+1) * sizeof(char));
+
+    char* minute = (char*)malloc((len+1) * sizeof(char));
+
+    strncpy(hour, yytext + 0, len - 3);
+
+    strncpy(minute, yytext + 3, len);
+
+    hour[len-3] = '\0';
+    hour[len] = '\0';
+    printf("%d_%s_(%s%s%s%s)\n", noOfLines, "tTIME","Hour_",hour,"_Minute_",minute);
+
+}
+{tIDENT}@{tDOMAIN} printf("%d_%s_(%s)\n", noOfLines, "tADDRESS", yytext);
+
+{tLOCAL}@{tDOMAIN} printf("%d_%s_(%s)\n", noOfLines, "tADDRESS", yytext);
+{tIDENT} printf("%d_%s_(%s)\n", noOfLines, "tIDENT", yytext);
+
+
+{tSTRING} {
+    
+    
+    
+    size_t len = strlen(yytext);
+
+    char* modified = (char*)malloc((len+1) * sizeof(char));
+    
+    strncpy(modified, yytext + 1, len - 2);
+
+    modified[len - 2] = '\0'; 
+    printf("%d_%s_(%s)\n", noOfLines, "tSTRING", modified);
+    if (strstr(yytext ,"\n") != NULL) {noOfLines++;}
+}
+
+[ \n\t] printf("");
+. printf("%d_%s_(%s)\n", noOfLines, "ILLEGAL_CHARACTER", yytext);
+%%
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+int main () {
+
+    yylex();
+    return (0);
+}
